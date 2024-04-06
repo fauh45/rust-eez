@@ -46,8 +46,11 @@ impl RespType {
                 '+' => sign = true,
                 '-' => sign = false,
                 '\r' => {
-                    // Read the \n
-                    stream.read(std::slice::from_mut(&mut byte))?;
+                    // There SHOULD be a check if the next byte is an '\n', though as it is not a string
+                    // It should be safe to assume that the next byte would be the '\n', integer cannot be
+                    // in a new line, right?
+                    // Read the '\n' to clear it off from the stream
+                    stream.peek(std::slice::from_mut(&mut byte))?;
 
                     break;
                 }
