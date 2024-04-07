@@ -7,6 +7,7 @@ pub enum RespType {
     // TODO: Separate the error to error code, and message
     Error(String),
     BulkString(String),
+    Null,
     Array(Vec<RespType>),
 }
 
@@ -23,15 +24,43 @@ impl RespType {
             '+' => RespType::deserialize_string(stream),
             '-' => RespType::deserialize_error(stream),
             ':' => RespType::deserialize_integer(stream),
-            // TODO: Create bulk string parser
-            '$' => Ok(RespType::BulkString("Bulk String".into())),
+            '$' => RespType::deserialize_bulk_string(stream),
             // TODO: Add array handler,
             '*' => Ok(RespType::Array(Vec::new())),
             _ => unimplemented!(),
         }
     }
 
-    fn deserialize_integer(mut stream: TcpStream) -> Result<Self, Box<dyn std::error::Error>> {
+    fn deserialize_bulk_string(mut stream: TcpStream) -> Result<Self, Box<dyn std::error::Error>> {
+        // NOTE: Also might be expensive to just clone it, might need to find a better handle the borrowing
+        let size = RespType::deserialize_number(stream.try_clone()?)?;
+
+        if size < 1 {
+            return Ok(RespType::Null);
+        }
+
+        // NOTE: The size given might not be enough? Not really sure whats the limit of `usize` is.
+        let mut final_string = String::with_capacity(size.try_into()?);
+        stream.read_to_string(&mut final_string)?;
+
+        // Read the remaining "\r\n"
+        stream.read(&mut [0u8; 2])?;
+
+        Ok(RespType::BulkString(final_string))
+    }
+
+    fn deserialize_integer(stream: TcpStream) -> Result<Self, Box<dyn std::error::Error>> {
+        match RespType::deserialize_number(stream) {
+            Ok(num) => Ok(RespType::Integer(num)),
+            Err(err) => Err(err),
+        }
+    }
+
+    /// Deserialize number from RESP2 formating
+    ///
+    /// This function expects the following format left in the stream,
+    /// "[< + | - >]< value >\r\n"
+    fn deserialize_number(mut stream: TcpStream) -> Result<i64, Box<dyn std::error::Error>> {
         let mut byte = 0u8;
 
         // If "+" then true, "-" then false
@@ -60,7 +89,7 @@ impl RespType {
             final_integer = -final_integer;
         }
 
-        Ok(Self::Integer(final_integer))
+        Ok(final_integer)
     }
 
     fn deserialize_string(stream: TcpStream) -> Result<Self, Box<dyn std::error::Error>> {
