@@ -9,9 +9,19 @@ fn handle_tcp_stream(mut stream: TcpStream) -> std::io::Result<()> {
     // NOTE: Might not be the best way to do it? Clone might be VERY expensive here!
     let resp_result = RespType::deserialize(stream.try_clone()?);
 
-    println!("TCP Packet reading: `{:?}`", resp_result);
+    match resp_result {
+        Ok((resp, mut stream)) => {
+            println!("Parsed TCP packet: `{:?}`", resp);
 
-    stream.write("+OK\r\n".as_bytes())?;
+            stream.write("+OK\r\n".as_bytes())?;
+        }
+        // TODO: Somehow make the error also return the stream?
+        Err(err) => {
+            println!("Parsing error: `{:?}`", err);
+
+            stream.write("-ERR Could not deserialized command(s)\r\n".as_bytes())?;
+        }
+    }
 
     Ok(())
 }
