@@ -181,4 +181,75 @@ impl RespType {
 
         Ok((final_string, stream))
     }
+
+    pub fn serialize(self) -> Vec<u8> {
+        match self {
+            Self::String(str) => Self::serialize_simple_string('+', str),
+            Self::Error(err) => Self::serialize_simple_string('-', err),
+            Self::Integer(num) => Self::serialize_simple_integer(num),
+            Self::BulkString(str) => Self::serialize_bulk_string(str),
+            Self::Array(arr) => Self::serialize_array(arr),
+            // Special case, all Null will be a bulk string with minus length
+            Self::Null => "$-1\r\n".into(),
+        }
+    }
+
+    fn serialize_simple_string(prefix: char, str: String) -> Vec<u8> {
+        // Create an array of bytes, with size of the string plus the prefix ('+' or '-') and the CRLF ("\r\n")
+        let mut bytes = Vec::<u8>::with_capacity(str.len() + 3);
+
+        bytes.push(prefix as u8);
+        bytes.append(&mut str.into_bytes());
+        bytes.append(&mut "\r\n".into());
+
+        bytes
+    }
+
+    fn serialize_simple_integer(num: i64) -> Vec<u8> {
+        let str_num: String = num.to_string();
+
+        Self::serialize_simple_string(':', str_num)
+    }
+
+    fn serialize_bulk_string(str: String) -> Vec<u8> {
+        let str_len = str.len().to_string();
+
+        // Array of bytes with length of the string representation of the length + the string length + 2 CRLF ("\r\n") + 1 prefix ('$')
+        let mut bytes = Vec::<u8>::with_capacity(str.len() + str_len.len() + 5);
+
+        // Prefix
+        bytes.push('$' as u8);
+
+        // String Length
+        bytes.append(&mut str_len.into_bytes());
+        bytes.append(&mut "\r\n".into());
+
+        // String data
+        bytes.append(&mut str.into_bytes());
+        bytes.append(&mut "\r\n".into());
+
+        bytes
+    }
+
+    fn serialize_array(arr: Vec<Self>) -> Vec<u8> {
+        let str_len = arr.len().to_string();
+
+        // Array of bytes with length of at least the prefix ('*') + number of elements + 1 CRLF
+        // As we don't know the total length of the rest of the array itself
+        let mut bytes = Vec::<u8>::with_capacity(str_len.len() + 3);
+
+        // Prefix
+        bytes.push('*' as u8);
+
+        // Array Length
+        bytes.append(&mut str_len.into_bytes());
+        bytes.append(&mut "\r\n".into());
+
+        // For each item, serialize and append it
+        for item in arr {
+            bytes.append(&mut Self::serialize(item));
+        }
+
+        bytes
+    }
 }

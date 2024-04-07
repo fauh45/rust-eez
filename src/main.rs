@@ -13,7 +13,8 @@ fn handle_tcp_stream(mut stream: TcpStream) -> std::io::Result<()> {
         Ok((resp, mut stream)) => {
             println!("Parsed TCP packet: `{:?}`", resp);
 
-            stream.write("+OK\r\n".as_bytes())?;
+            let ok_response = RespType::String("OK".into());
+            stream.write(&ok_response.serialize())?;
         }
         // TODO: Somehow make the error also return the stream?
         Err(err) => {
