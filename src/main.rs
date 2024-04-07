@@ -3,7 +3,7 @@ use std::{
     net::{TcpListener, TcpStream},
 };
 
-use rust_eez::resp::RespType;
+use rust_eez::{commands::commands::handle_commands, resp::RespType};
 
 fn handle_tcp_stream(mut stream: TcpStream) -> std::io::Result<()> {
     // NOTE: Might not be the best way to do it? Clone might be VERY expensive here!
@@ -11,16 +11,24 @@ fn handle_tcp_stream(mut stream: TcpStream) -> std::io::Result<()> {
 
     match resp_result {
         Ok((resp, mut stream)) => {
-            println!("Parsed TCP packet: `{:?}`", resp);
+            println!("[Main Handler] Parsed TCP packet: `{:?}`", resp);
+            let mut response = RespType::Error("WRONGTYPE array was expected".into());
 
-            let ok_response = RespType::String("OK".into());
-            stream.write(&ok_response.serialize())?;
+            if let RespType::Array(commands) = resp {
+                response = handle_commands(commands);
+            }
+
+            println!("[Main Handler] Responding with `{:#?}`", response);
+
+            stream.write(&response.serialize())?;
         }
         // TODO: Somehow make the error also return the stream?
         Err(err) => {
             println!("Parsing error: `{:?}`", err);
 
-            stream.write("-ERR Could not deserialized command(s)\r\n".as_bytes())?;
+            stream.write(
+                &RespType::Error("ERR Could not deserialized command(s)".into()).serialize(),
+            )?;
         }
     }
 
