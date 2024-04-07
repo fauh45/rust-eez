@@ -12,30 +12,27 @@ pub enum RespType {
 
 impl RespType {
     pub fn deserialize(mut stream: TcpStream) -> Result<Self, Box<dyn std::error::Error>> {
-        let mut byte_buf = [0; 1];
+        let mut byte = 0u8;
         // Try to read the first bytes from the stream
-        stream.read(&mut byte_buf)?;
+        stream.read(std::slice::from_mut(&mut byte))?;
 
         // Convert the byte into a string
         // NOTE: though might be better if it was a char?
-        match core::str::from_utf8(&byte_buf) {
+        match byte as char {
             // Match the first string to check for its type
-            Ok(type_ident) => match type_ident {
-                "+" => RespType::deserialize_string(stream),
-                "-" => RespType::deserialize_error(stream),
-                ":" => RespType::deserialize_integer(stream),
-                // TODO: Create bulk string parser
-                "$" => Ok(RespType::BulkString("Bulk String".into())),
-                // TODO: Add array handler,
-                "*" => Ok(RespType::Array(Vec::new())),
-                _ => unimplemented!(),
-            },
-            Err(_) => unimplemented!(),
+            '+' => RespType::deserialize_string(stream),
+            '-' => RespType::deserialize_error(stream),
+            ':' => RespType::deserialize_integer(stream),
+            // TODO: Create bulk string parser
+            '$' => Ok(RespType::BulkString("Bulk String".into())),
+            // TODO: Add array handler,
+            '*' => Ok(RespType::Array(Vec::new())),
+            _ => unimplemented!(),
         }
     }
 
     fn deserialize_integer(mut stream: TcpStream) -> Result<Self, Box<dyn std::error::Error>> {
-        let mut byte = 0 as u8;
+        let mut byte = 0u8;
 
         // If "+" then true, "-" then false
         let mut sign = true;
@@ -86,20 +83,16 @@ impl RespType {
     fn deserialize_simple_string(
         mut stream: TcpStream,
     ) -> Result<String, Box<dyn std::error::Error>> {
-        // NOTE: There's gonna be better way to store a byte of data
-        let mut byte_buf = [0; 1];
-        let mut final_string = Vec::new();
+        let mut byte = 0u8;
+        let mut final_string = String::new();
 
-        while let Ok(_) = stream.read(&mut byte_buf) {
-            final_string.push(byte_buf[0]);
+        while let Ok(_) = stream.read(std::slice::from_mut(&mut byte)) {
+            final_string.push(byte as char);
         }
 
         // Truncate the last "\r\n"
         final_string.truncate(final_string.len() - 2);
 
-        match String::from_utf8(final_string) {
-            Ok(str) => Ok(str.to_string()),
-            Err(err) => Err(Box::new(err)),
-        }
+        Ok(final_string)
     }
 }
