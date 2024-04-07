@@ -3,7 +3,7 @@ use std::{io::Read, net::TcpStream};
 /// RESP2 Compatible Enum
 ///
 /// This enum should be able to represent
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum RespType {
     /// Simple string
     String(String),

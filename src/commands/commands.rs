@@ -1,10 +1,11 @@
 use crate::resp::RespType;
 use phf::phf_map;
 
-use super::ping::ping;
+use super::{hello::hello, ping::ping};
 
 static COMMANDS_LIST: phf::Map<&'static str, fn(&[RespType]) -> RespType> = phf_map! {
-    "PING" => ping
+    "PING" => ping,
+    "HELLO" => hello
 };
 
 pub fn handle_commands(command_arr: Vec<RespType>) -> RespType {
