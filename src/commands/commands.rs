@@ -22,6 +22,8 @@ pub fn handle_commands(
             "DEL" => string_op::del(command_args, storage),
             "HSET" => set_op::hset(command_args, storage),
             "HGET" => set_op::hget(command_args, storage),
+            "HGETALL" => set_op::hgetall(command_args, storage),
+            "HDEL" => set_op::hdel(command_args, storage),
             _ => RespType::Error(format!("ERR unknown command '{}'", command_name)),
         }
     } else {

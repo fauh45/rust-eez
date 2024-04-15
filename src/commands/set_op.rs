@@ -14,6 +14,11 @@ pub fn hset(args: &[RespType], storage: Arc<RwLock<HashMap<String, StorageType>>
         return RespType::Error("ARGERR key are required for HSET".into());
     };
 
+    // NOTE: This will check if the remaining length of the args (excluding the key)
+    if args_iter.len() == 0 {
+        return RespType::Error("ARGERR at least one field are required for HSET".into());
+    }
+
     match storage.write() {
         Ok(mut storage_locked) => {
             let existing = storage_locked.get(key);
@@ -75,6 +80,79 @@ pub fn hget(args: &[RespType], storage: Arc<RwLock<HashMap<String, StorageType>>
             println!("[SetOp HGET] Got poisoned storage for read: {:#?}", err);
 
             RespType::Error("ERR system error while getting data".into())
+        }
+    }
+}
+
+pub fn hgetall(args: &[RespType], storage: Arc<RwLock<HashMap<String, StorageType>>>) -> RespType {
+    let key = if let Some(RespType::BulkString(key)) = args.first() {
+        key
+    } else {
+        return RespType::Error("ARGERR key are required for HGETALL".into());
+    };
+
+    let mut return_values = Vec::<RespType>::new();
+
+    match storage.read() {
+        Ok(storage_locked) => {
+            if let Some(StorageType::HashMap(existing_hash)) = storage_locked.get(key) {
+                for (key, val) in existing_hash.iter() {
+                    if let StorageType::String(val) = val {
+                        return_values.push(RespType::BulkString(key.into()));
+                        return_values.push(RespType::BulkString(val.into()));
+                    }
+                }
+            }
+
+            RespType::Array(return_values)
+        }
+        Err(err) => {
+            println!("[SetOp HGETALL] Got poisoned storage for read: {:#?}", err);
+
+            RespType::Error("ERR system error while getting data".into())
+        }
+    }
+}
+
+pub fn hdel(args: &[RespType], storage: Arc<RwLock<HashMap<String, StorageType>>>) -> RespType {
+    let mut args_iter = args.iter();
+
+    let key = if let Some(RespType::BulkString(key)) = args_iter.next() {
+        key
+    } else {
+        return RespType::Error("ARGERR key are required for HDEL".into());
+    };
+
+    // NOTE: This will check if the remaining length of the args (excluding the key)
+    if args_iter.len() == 0 {
+        return RespType::Error("ARGERR at least one field are required for HDEL".into());
+    }
+
+    match storage.write() {
+        Ok(mut storage_locked) => {
+            let mut del_count = 0;
+
+            let mut existing_hash =
+                if let Some(StorageType::HashMap(existing_hash)) = storage_locked.get(key) {
+                    existing_hash.clone()
+                } else {
+                    return RespType::Integer(0);
+                };
+
+            while let Some(RespType::BulkString(key_to_delete)) = args_iter.next() {
+                if existing_hash.remove(key_to_delete).is_some() {
+                    del_count += 1;
+                }
+            }
+
+            storage_locked.insert(key.into(), StorageType::HashMap(existing_hash));
+
+            RespType::Integer(del_count)
+        }
+        Err(err) => {
+            println!("[SetOp HDEL] Got poisoned error for write: {:#?}", err);
+
+            RespType::Error("ERR system error while inserting data".into())
         }
     }
 }
