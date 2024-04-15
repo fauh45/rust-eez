@@ -28,7 +28,7 @@ impl RespType {
     ) -> Result<(Self, TcpStream), Box<dyn std::error::Error>> {
         let mut byte = 0u8;
         // Try to read the first bytes from the stream
-        stream.read(std::slice::from_mut(&mut byte))?;
+        stream.read_exact(std::slice::from_mut(&mut byte))?;
 
         // Convert the byte into a string
         // NOTE: though might be better if it was a char?
@@ -82,7 +82,7 @@ impl RespType {
 
         for _ in 0..size {
             let mut byte = 0u8;
-            stream.read(std::slice::from_mut(&mut byte))?;
+            stream.read_exact(std::slice::from_mut(&mut byte))?;
 
             final_string.push(byte as char);
         }
@@ -93,7 +93,7 @@ impl RespType {
         );
 
         // Read the remaining "\r\n"
-        stream.read(&mut [0u8; 2])?;
+        stream.read_exact(&mut [0u8; 2])?;
 
         Ok((RespType::BulkString(final_string), stream))
     }
@@ -120,7 +120,7 @@ impl RespType {
         let mut sign = true;
         let mut str_integer = String::new();
 
-        while let Ok(_) = stream.read(std::slice::from_mut(&mut byte)) {
+        while stream.read_exact(std::slice::from_mut(&mut byte)).is_ok() {
             match byte as char {
                 '+' => sign = true,
                 '-' => sign = false,
@@ -129,7 +129,7 @@ impl RespType {
                     // It should be safe to assume that the next byte would be the '\n', integer cannot be
                     // in a new line, right?
                     // Read the '\n' to clear it off from the stream
-                    stream.read(std::slice::from_mut(&mut byte))?;
+                    stream.read_exact(std::slice::from_mut(&mut byte))?;
 
                     break;
                 }
@@ -172,7 +172,7 @@ impl RespType {
         let mut byte = 0u8;
         let mut final_string = String::new();
 
-        while let Ok(_) = stream.read(std::slice::from_mut(&mut byte)) {
+        while stream.read(std::slice::from_mut(&mut byte)).is_ok() {
             final_string.push(byte as char);
         }
 

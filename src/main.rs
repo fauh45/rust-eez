@@ -25,13 +25,13 @@ fn handle_tcp_stream(
 
             println!("[Main Handler] Responding with `{:#?}`", response);
 
-            stream.write(&response.serialize())?;
+            stream.write_all(&response.serialize())?;
         }
         // TODO: Somehow make the error also return the stream?
         Err(err) => {
             println!("Parsing error: `{:?}`", err);
 
-            stream.write(
+            stream.write_all(
                 &RespType::Error("ERR Could not deserialized command(s)".into()).serialize(),
             )?;
         }
