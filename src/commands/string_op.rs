@@ -82,7 +82,7 @@ pub fn get(args: &[RespType], storage: Arc<RwLock<HashMap<String, StorageType>>>
 /// Currently implemented syntax
 /// `DEL key [key ...]`
 pub fn del(args: &[RespType], storage: Arc<RwLock<HashMap<String, StorageType>>>) -> RespType {
-    if args.len() < 1 {
+    if args.is_empty() {
         return RespType::Error("ARGERR no keys given for DEL command".into());
     }
 
@@ -92,7 +92,7 @@ pub fn del(args: &[RespType], storage: Arc<RwLock<HashMap<String, StorageType>>>
         Ok(mut storage_locked) => {
             for key in args {
                 if let RespType::BulkString(key) = key {
-                    if let Some(_) = storage_locked.remove(key) {
+                    if storage_locked.remove(key).is_some() {
                         deleted_count += 1;
                     }
                 }
