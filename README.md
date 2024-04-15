@@ -24,13 +24,37 @@ Synopsis: Delete value in key(s).
 
 Syntax: `DEL key [key ...]`
 
+### **HSET**
+
+Synopsis: Set specified field(s) with the respective value(s) stored in a hash at the key provided.
+
+Syntax: `HSET key field value [field value ...]`
+
+### **HGET**
+
+Synopsis: Get the value associated with the field stored as a hash in the key provided.
+
+Syntax: `HGET key field`
+
+### **HGETALL**
+
+Synopsis: Get all the fields and values stored as a hash in the key provided.
+
+Syntax: `HGETALL key`
+
+### **HDEL**
+
+Synopsis: Delete a particular field(s) in a hash stored at the key provided.
+
+Syntax: `HDEL key [key ...]`
+
 ### **PING**
 
 Synopsis: Ping the server.
 
 Syntax: `PING [message]`
 
-### **PING**
+### **HELLO**
 
 Synopsis: Switch protocol, though only allowing RESP2 (lol).
 
