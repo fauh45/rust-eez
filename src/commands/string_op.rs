@@ -62,7 +62,7 @@ pub fn get(args: &[RespType], storage: Arc<RwLock<HashMap<String, StorageType>>>
     match storage.read() {
         Ok(storage_locked) => match storage_locked.get(key_args) {
             Some(StorageType::String(value)) => RespType::BulkString(value.to_string()),
-            None => RespType::Null,
+            _ => RespType::Null,
         },
         Err(err) => {
             println!(
