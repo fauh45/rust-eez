@@ -1,4 +1,4 @@
-use std::{io::Read, net::TcpStream};
+use std::{i64, io::Read};
 
 /// RESP2 Compatible Enum
 ///
@@ -23,9 +23,7 @@ pub enum RespType {
 }
 
 impl RespType {
-    pub fn deserialize(
-        mut stream: TcpStream,
-    ) -> Result<(Self, TcpStream), Box<dyn std::error::Error>> {
+    pub fn deserialize<S: Read>(mut stream: S) -> Result<(Self, S), Box<dyn std::error::Error>> {
         let mut byte = 0u8;
         // Try to read the first bytes from the stream
         stream.read_exact(std::slice::from_mut(&mut byte))?;
@@ -46,9 +44,7 @@ impl RespType {
         }
     }
 
-    fn deserialize_array(
-        stream: TcpStream,
-    ) -> Result<(Self, TcpStream), Box<dyn std::error::Error>> {
+    fn deserialize_array<S: Read>(stream: S) -> Result<(Self, S), Box<dyn std::error::Error>> {
         let (size, stream) = RespType::deserialize_number(stream)?;
         let mut array_content = Vec::<RespType>::with_capacity(size.try_into()?);
 
@@ -68,9 +64,9 @@ impl RespType {
         Ok((RespType::Array(array_content), stream))
     }
 
-    fn deserialize_bulk_string(
-        stream: TcpStream,
-    ) -> Result<(Self, TcpStream), Box<dyn std::error::Error>> {
+    fn deserialize_bulk_string<S: Read>(
+        stream: S,
+    ) -> Result<(Self, S), Box<dyn std::error::Error>> {
         let (size, mut stream) = RespType::deserialize_number(stream)?;
         println!("[RespType BulkString] Reading for size: {:#?}", size);
 
@@ -98,9 +94,7 @@ impl RespType {
         Ok((RespType::BulkString(final_string), stream))
     }
 
-    fn deserialize_integer(
-        stream: TcpStream,
-    ) -> Result<(Self, TcpStream), Box<dyn std::error::Error>> {
+    fn deserialize_integer<S: Read>(stream: S) -> Result<(Self, S), Box<dyn std::error::Error>> {
         match RespType::deserialize_number(stream) {
             Ok((num, stream)) => Ok((RespType::Integer(num), stream)),
             Err(err) => Err(err),
@@ -111,9 +105,7 @@ impl RespType {
     ///
     /// This function expects the following format left in the stream,
     /// "[< + | - >]< value >\r\n"
-    fn deserialize_number(
-        mut stream: TcpStream,
-    ) -> Result<(i64, TcpStream), Box<dyn std::error::Error>> {
+    fn deserialize_number<S: Read>(mut stream: S) -> Result<(i64, S), Box<dyn std::error::Error>> {
         let mut byte = 0u8;
 
         // If "+" then true, "-" then false
@@ -145,18 +137,14 @@ impl RespType {
         Ok((final_integer, stream))
     }
 
-    fn deserialize_string(
-        stream: TcpStream,
-    ) -> Result<(Self, TcpStream), Box<dyn std::error::Error>> {
+    fn deserialize_string<S: Read>(stream: S) -> Result<(Self, S), Box<dyn std::error::Error>> {
         match RespType::deserialize_simple_string(stream) {
             Ok((str, stream)) => Ok((RespType::String(str), stream)),
             Err(err) => Err(err),
         }
     }
 
-    fn deserialize_error(
-        stream: TcpStream,
-    ) -> Result<(Self, TcpStream), Box<dyn std::error::Error>> {
+    fn deserialize_error<S: Read>(stream: S) -> Result<(Self, S), Box<dyn std::error::Error>> {
         match RespType::deserialize_simple_string(stream) {
             Ok((str, stream)) => Ok((RespType::Error(str), stream)),
             Err(err) => Err(err),
@@ -166,9 +154,9 @@ impl RespType {
     /// This function expects that the simple string that the first byte have been discarded.
     ///
     /// e.g. The raw string is, "+OK\r\n" or "-ERR Message\r\n", but the stream have string and the "\r\n" left, for example "OK\r\n".
-    fn deserialize_simple_string(
-        mut stream: TcpStream,
-    ) -> Result<(String, TcpStream), Box<dyn std::error::Error>> {
+    fn deserialize_simple_string<S: Read>(
+        mut stream: S,
+    ) -> Result<(String, S), Box<dyn std::error::Error>> {
         let mut byte = 0u8;
         let mut final_string = String::new();
 
@@ -218,7 +206,7 @@ impl RespType {
         let mut bytes = Vec::<u8>::with_capacity(str.len() + str_len.len() + 5);
 
         // Prefix
-        bytes.push('$' as u8);
+        bytes.push(b'$');
 
         // String Length
         bytes.append(&mut str_len.into_bytes());
@@ -239,7 +227,7 @@ impl RespType {
         let mut bytes = Vec::<u8>::with_capacity(str_len.len() + 3);
 
         // Prefix
-        bytes.push('*' as u8);
+        bytes.push(b'*');
 
         // Array Length
         bytes.append(&mut str_len.into_bytes());
