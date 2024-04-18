@@ -245,3 +245,85 @@ impl RespType {
         bytes
     }
 }
+
+#[cfg(test)]
+mod resp_tests {
+    use core::panic;
+    use std::collections::VecDeque;
+    use test;
+
+    use super::RespType;
+
+    macro_rules! test_valid_serialization_deserialization {
+        ($de_test_func:ident, $ser_test_func:ident, $raw_resp_string:expr, $expected_resp:expr, $panic_message:expr) => {
+            #[test]
+            fn $de_test_func() {
+                match RespType::deserialize(VecDeque::from($raw_resp_string.as_bytes().to_vec())) {
+                    Ok((deserialized_resp, _)) => {
+                        assert_eq!(deserialized_resp, $expected_resp);
+                    }
+                    _ => panic!($panic_message),
+                }
+            }
+
+            #[test]
+            fn $ser_test_func() {
+                assert_eq!(
+                    $expected_resp.serialize(),
+                    $raw_resp_string.as_bytes().to_vec()
+                );
+            }
+        };
+    }
+
+    test_valid_serialization_deserialization!(
+        working_simple_string_deserializer,
+        working_simple_string_serializer,
+        "+OK\r\n",
+        RespType::String("OK".into()),
+        "Valid Simple String should be able to be serialize/deserialize!"
+    );
+
+    test_valid_serialization_deserialization!(
+        working_error_deserializer,
+        working_error_serializer,
+        "-ERR Some Error\r\n",
+        RespType::Error("ERR Some Error".into()),
+        "Valid Error should be able to be serialize/deserialize!"
+    );
+
+    test_valid_serialization_deserialization!(
+        working_bulk_string_deserializer,
+        working_bulk_string_serializer,
+        "$2\r\nHI\r\n",
+        RespType::BulkString("HI".into()),
+        "Valid BulkString should be able to be serialize/deserialize!"
+    );
+
+    test_valid_serialization_deserialization!(
+        working_simple_integer_deserialization,
+        working_simple_integer_serializer,
+        ":69\r\n",
+        RespType::Integer(69),
+        "Valid Simple Integer should be able to be serialize/deserialize!"
+    );
+
+    test_valid_serialization_deserialization!(
+        working_array_deserialization,
+        working_array_serialization,
+        "*2\r\n$5\r\nHello\r\n$5\r\nWorld\r\n",
+        RespType::Array(vec![
+            RespType::BulkString("Hello".into()),
+            RespType::BulkString("World".into())
+        ]),
+        "Valid Array should be able to be serialize/deserialize!"
+    );
+
+    test_valid_serialization_deserialization!(
+        working_null_deserializer,
+        working_null_serializer,
+        "$-1\r\n",
+        RespType::Null,
+        "Valid Null should be able to be serialize/deserialize!"
+    );
+}
