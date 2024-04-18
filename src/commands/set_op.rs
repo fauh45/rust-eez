@@ -35,7 +35,7 @@ pub fn hset(args: &[RespType], storage: Arc<RwLock<HashMap<String, StorageType>>
                 Some(RespType::BulkString(field_value)),
             ) = (args_iter.next(), args_iter.next())
             {
-                existing_hash.insert(field_key.into(), StorageType::String(field_value.into()));
+                existing_hash.insert(field_key.into(), field_value.into());
 
                 insert_count += 1;
             }
@@ -67,7 +67,7 @@ pub fn hget(args: &[RespType], storage: Arc<RwLock<HashMap<String, StorageType>>
     match storage.read() {
         Ok(storage_locked) => {
             if let Some(StorageType::HashMap(existing_hash)) = storage_locked.get(key) {
-                if let Some(StorageType::String(field_value)) = existing_hash.get(field_key) {
+                if let Some(field_value) = existing_hash.get(field_key) {
                     RespType::BulkString(field_value.into())
                 } else {
                     RespType::Null
@@ -97,10 +97,8 @@ pub fn hgetall(args: &[RespType], storage: Arc<RwLock<HashMap<String, StorageTyp
         Ok(storage_locked) => {
             if let Some(StorageType::HashMap(existing_hash)) = storage_locked.get(key) {
                 for (key, val) in existing_hash.iter() {
-                    if let StorageType::String(val) = val {
-                        return_values.push(RespType::BulkString(key.into()));
-                        return_values.push(RespType::BulkString(val.into()));
-                    }
+                    return_values.push(RespType::BulkString(key.into()));
+                    return_values.push(RespType::BulkString(val.into()));
                 }
             }
 
