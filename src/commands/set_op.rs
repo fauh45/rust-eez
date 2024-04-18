@@ -143,7 +143,11 @@ pub fn hdel(args: &[RespType], storage: Arc<RwLock<HashMap<String, StorageType>>
                 }
             }
 
-            storage_locked.insert(key.into(), StorageType::HashMap(existing_hash));
+            if existing_hash.is_empty() {
+                storage_locked.remove(key);
+            } else {
+                storage_locked.insert(key.into(), StorageType::HashMap(existing_hash));
+            }
 
             RespType::Integer(del_count)
         }
