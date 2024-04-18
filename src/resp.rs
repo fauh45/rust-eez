@@ -30,13 +30,13 @@ impl RespType {
 
         // Convert the byte into a string
         // NOTE: though might be better if it was a char?
-        match byte as char {
+        match byte {
             // Match the first string to check for its type
-            '+' => RespType::deserialize_string(stream),
-            '-' => RespType::deserialize_error(stream),
-            ':' => RespType::deserialize_integer(stream),
-            '$' => RespType::deserialize_bulk_string(stream),
-            '*' => RespType::deserialize_array(stream),
+            b'+' => RespType::deserialize_string(stream),
+            b'-' => RespType::deserialize_error(stream),
+            b':' => RespType::deserialize_integer(stream),
+            b'$' => RespType::deserialize_bulk_string(stream),
+            b'*' => RespType::deserialize_array(stream),
             _ => {
                 println!("[RespType] Getting un-supported type: `{:?}`", byte as char);
                 unimplemented!()
@@ -161,19 +161,23 @@ impl RespType {
         let mut final_string = String::new();
 
         while stream.read(std::slice::from_mut(&mut byte)).is_ok() {
+            if byte == b'\r' && stream.read(std::slice::from_mut(&mut byte)).is_ok() {
+                if byte == b'\n' {
+                    break;
+                } else {
+                    final_string.push('\r');
+                }
+            }
             final_string.push(byte as char);
         }
-
-        // Truncate the last "\r\n"
-        final_string.truncate(final_string.len() - 2);
 
         Ok((final_string, stream))
     }
 
     pub fn serialize(self) -> Vec<u8> {
         match self {
-            Self::String(str) => Self::serialize_simple_string('+', str),
-            Self::Error(err) => Self::serialize_simple_string('-', err),
+            Self::String(str) => Self::serialize_simple_string(b'+', str),
+            Self::Error(err) => Self::serialize_simple_string(b'-', err),
             Self::Integer(num) => Self::serialize_simple_integer(num),
             Self::BulkString(str) => Self::serialize_bulk_string(str),
             Self::Array(arr) => Self::serialize_array(arr),
@@ -182,11 +186,11 @@ impl RespType {
         }
     }
 
-    fn serialize_simple_string(prefix: char, str: String) -> Vec<u8> {
+    fn serialize_simple_string(prefix: u8, str: String) -> Vec<u8> {
         // Create an array of bytes, with size of the string plus the prefix ('+' or '-') and the CRLF ("\r\n")
         let mut bytes = Vec::<u8>::with_capacity(str.len() + 3);
 
-        bytes.push(prefix as u8);
+        bytes.push(prefix);
         bytes.append(&mut str.into_bytes());
         bytes.append(&mut "\r\n".into());
 
@@ -196,7 +200,7 @@ impl RespType {
     fn serialize_simple_integer(num: i64) -> Vec<u8> {
         let str_num: String = num.to_string();
 
-        Self::serialize_simple_string(':', str_num)
+        Self::serialize_simple_string(b':', str_num)
     }
 
     fn serialize_bulk_string(str: String) -> Vec<u8> {
