@@ -26,6 +26,10 @@ pub fn hset(args: &[RespType], storage: Arc<RwLock<HashMap<String, StorageType>>
 
             let mut existing_hash = if let Some(StorageType::HashMap(existing_hash)) = existing {
                 existing_hash.clone()
+            } else if existing.is_some() {
+                return RespType::Error(
+                    "WRONGTYPE operation against a key holding non-hashmap".into(),
+                );
             } else {
                 HashMap::new()
             };
@@ -66,9 +70,14 @@ pub fn hget(args: &[RespType], storage: Arc<RwLock<HashMap<String, StorageType>>
 
     match storage.read() {
         Ok(storage_locked) => {
-            if let Some(StorageType::HashMap(existing_hash)) = storage_locked.get(key) {
+            let existing = storage_locked.get(key);
+            if let Some(StorageType::HashMap(existing_hash)) = existing {
                 if let Some(field_value) = existing_hash.get(field_key) {
                     RespType::BulkString(field_value.into())
+                } else if existing.is_some() {
+                    return RespType::Error(
+                        "WRONGTYPE operation against a key holding non-hashmap".into(),
+                    );
                 } else {
                     RespType::Null
                 }
@@ -95,11 +104,16 @@ pub fn hgetall(args: &[RespType], storage: Arc<RwLock<HashMap<String, StorageTyp
 
     match storage.read() {
         Ok(storage_locked) => {
-            if let Some(StorageType::HashMap(existing_hash)) = storage_locked.get(key) {
+            let existing = storage_locked.get(key);
+            if let Some(StorageType::HashMap(existing_hash)) = existing {
                 for (key, val) in existing_hash.iter() {
                     return_values.push(RespType::BulkString(key.into()));
                     return_values.push(RespType::BulkString(val.into()));
                 }
+            } else if existing.is_some() {
+                return RespType::Error(
+                    "WRONGTYPE operation against a key holding non-hashmap".into(),
+                );
             }
 
             RespType::Array(return_values)
@@ -129,13 +143,17 @@ pub fn hdel(args: &[RespType], storage: Arc<RwLock<HashMap<String, StorageType>>
     match storage.write() {
         Ok(mut storage_locked) => {
             let mut del_count = 0;
+            let existing = storage_locked.get(key);
 
-            let mut existing_hash =
-                if let Some(StorageType::HashMap(existing_hash)) = storage_locked.get(key) {
-                    existing_hash.clone()
-                } else {
-                    return RespType::Integer(0);
-                };
+            let mut existing_hash = if let Some(StorageType::HashMap(existing_hash)) = existing {
+                existing_hash.clone()
+            } else if existing.is_some() {
+                return RespType::Error(
+                    "WRONGTYPE operation against a key holding non-hashmap".into(),
+                );
+            } else {
+                return RespType::Integer(0);
+            };
 
             while let Some(RespType::BulkString(key_to_delete)) = args_iter.next() {
                 if existing_hash.remove(key_to_delete).is_some() {
