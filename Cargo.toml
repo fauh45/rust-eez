@@ -1,8 +1,20 @@
 [package]
 name = "rust-eez"
 version = "0.1.0"
+authors = ["Fauzan <fauzan@fauh45.my.id>"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[profile.release]
+strip = true
+lto = true
+
 [dependencies]
+
+[dev-dependencies]
+criterion = "0.5.1"
+
+[[bench]]
+name = "commands"
+harness = false
