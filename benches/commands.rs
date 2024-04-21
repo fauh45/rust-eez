@@ -20,7 +20,7 @@ fn to_stream(command: &str) -> VecDeque<u8> {
 }
 
 fn bench_simple_set_get_del(c: &mut Criterion) {
-    c.bench_function("Test", |b| {
+    c.bench_function("Simple GET SET DEL", |b| {
         b.iter(|| {
             // NOTE: All of this initialization might took a few cycle, need to find a better way
             // to do it.
