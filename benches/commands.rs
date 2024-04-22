@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rust_eez::{handle_command_stream, storage::StorageType};
 
 /// Hacky way to "mock" TcpStream, but it work to see perf
@@ -19,24 +19,46 @@ fn to_stream(command: &str) -> VecDeque<u8> {
     stream
 }
 
-fn bench_simple_set_get_del(c: &mut Criterion) {
-    c.bench_function("Simple GET SET DEL", |b| {
+fn bench_set_op(c: &mut Criterion) {
+    let storage: Arc<RwLock<HashMap<String, StorageType>>> = Arc::new(RwLock::new(HashMap::new()));
+    let set_command = to_stream("*3\r\n$3\r\nSET\r\n$3\r\nHII\r\n$11\r\nHELLO WORLD");
+
+    c.bench_function("SET command", move |b| {
         b.iter(|| {
-            // NOTE: All of this initialization might took a few cycle, need to find a better way
-            // to do it.
-            let storage: Arc<RwLock<HashMap<String, StorageType>>> =
-                Arc::new(RwLock::new(HashMap::new()));
-
-            let set_command = to_stream("*3\r\n$3\r\nSET\r\n$3\r\nHII\r\n$11\r\nHELLO WORLD");
-            let get_command = to_stream("*2\r\n$3\r\nGET\r\n$3\r\nHII");
-            let del_command = to_stream("*2\r\n$3\r\nDEL\r\n$3\r\nHII");
-
-            handle_command_stream(set_command, storage.clone()).unwrap();
-            handle_command_stream(get_command, storage.clone()).unwrap();
-            handle_command_stream(del_command, storage.clone()).unwrap();
+            handle_command_stream(black_box(set_command.clone()), black_box(storage.clone()))
+                .unwrap();
         })
     });
 }
 
-criterion_group!(benches, bench_simple_set_get_del);
+fn bench_get_op(c: &mut Criterion) {
+    let storage: Arc<RwLock<HashMap<String, StorageType>>> = Arc::new(RwLock::new(HashMap::from(
+        [("HII".into(), StorageType::String("AAA".into()))],
+    )));
+    let get_command = to_stream("*2\r\n$3\r\nGET\r\n$3\r\nHII");
+
+    c.bench_function("GET command", move |b| {
+        b.iter(|| {
+            handle_command_stream(black_box(get_command.clone()), black_box(storage.clone()))
+                .unwrap();
+        })
+    });
+}
+
+fn bench_del_op(c: &mut Criterion) {
+    let storage: Arc<RwLock<HashMap<String, StorageType>>> = Arc::new(RwLock::new(HashMap::from(
+        [("HII".into(), StorageType::String("AAA".into()))],
+    )));
+
+    let del_command = to_stream("*2\r\n$3\r\nDEL\r\n$3\r\nHII");
+
+    c.bench_function("DEL command", move |b| {
+        b.iter(|| {
+            handle_command_stream(black_box(del_command.clone()), black_box(storage.clone()))
+                .unwrap();
+        })
+    });
+}
+
+criterion_group!(benches, bench_set_op, bench_get_op, bench_del_op);
 criterion_main!(benches);
